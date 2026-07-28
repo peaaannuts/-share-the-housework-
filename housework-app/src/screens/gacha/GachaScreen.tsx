@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useHousehold } from '../../contexts/HouseholdContext'
 import { useAllLogs } from '../../hooks/useLogs'
 import { HOUSEWORK_TIPS, type HouseworkTip } from '../../data/houseworkTips'
@@ -9,8 +9,13 @@ import {
   spendAndUnlock,
 } from '../../lib/gachaService'
 import { useIsDark } from '../../lib/theme'
+import { CHORE_CATEGORIES } from '../../types'
 
 export const SPIN_COST = 500
+// Floor on how long the spin animation runs, regardless of how fast the
+// transaction resolves — keeps the reel from flashing by in a single frame.
+const MIN_SPIN_MS = 900
+const CONFETTI_EMOJI = ['🍀', '✨', '🌿', '⭐️']
 
 function shuffled<T>(items: T[]): T[] {
   const copy = [...items]
@@ -43,6 +48,63 @@ function TipArt({ tip, isDark, size }: { tip: HouseworkTip; isDark: boolean; siz
         categoryEmoji(tip.category)
       )}
     </span>
+  )
+}
+
+function SpinOverlay({ emoji }: { emoji: string }) {
+  return (
+    <div className="fixed inset-0 z-[65] flex flex-col items-center justify-center gap-4 bg-black/35 backdrop-blur-[1px]">
+      <div
+        className="flex h-28 w-28 items-center justify-center rounded-full border-[6px] border-white text-5xl shadow-[0_8px_0_rgba(180,130,40,0.45)]"
+        style={{
+          background: 'linear-gradient(180deg,#ffd166,#f3b23f)',
+          animation: 'capsuleShake 0.5s ease-in-out infinite',
+        }}
+      >
+        {emoji}
+      </div>
+      <p className="text-sm font-bold text-white drop-shadow">ドキドキ…</p>
+    </div>
+  )
+}
+
+function Confetti() {
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 14 }, (_, i) => {
+        const angle = (i / 14) * 2 * Math.PI + (Math.random() - 0.5) * 0.4
+        const distance = 70 + Math.random() * 70
+        return {
+          id: i,
+          emoji: CONFETTI_EMOJI[i % CONFETTI_EMOJI.length],
+          tx: Math.cos(angle) * distance,
+          ty: Math.sin(angle) * distance - 20,
+          rot: (Math.random() - 0.5) * 480,
+          delay: Math.random() * 0.1,
+          duration: 0.8 + Math.random() * 0.4,
+        }
+      }),
+    [],
+  )
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      {particles.map((p) => (
+        <span
+          key={p.id}
+          className="absolute left-1/2 top-1/3 text-xl"
+          style={
+            {
+              '--tx': `${p.tx}px`,
+              '--ty': `${p.ty}px`,
+              '--rot': `${p.rot}deg`,
+              animation: `confettiBurst ${p.duration}s ease-out ${p.delay}s forwards`,
+            } as React.CSSProperties
+          }
+        >
+          {p.emoji}
+        </span>
+      ))}
+    </div>
   )
 }
 
@@ -92,6 +154,15 @@ export function GachaScreen({ onClose }: { onClose: () => void }) {
   const [justWon, setJustWon] = useState<HouseworkTip | null>(null)
   const [viewing, setViewing] = useState<HouseworkTip | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reelTick, setReelTick] = useState(0)
+  const [burst, setBurst] = useState(0)
+
+  useEffect(() => {
+    if (!spinning) return
+    const id = setInterval(() => setReelTick((t) => t + 1), 90)
+    return () => clearInterval(id)
+  }, [spinning])
+  const reelEmoji = categoryEmoji(CHORE_CATEGORIES[reelTick % CHORE_CATEGORIES.length])
 
   const unlockedIds = useMemo(() => household?.tipsUnlocked ?? [], [household?.tipsUnlocked])
   const earned = useMemo(() => logs.reduce((sum, l) => sum + l.minutes * 10, 0), [logs])
@@ -112,15 +183,19 @@ export function GachaScreen({ onClose }: { onClose: () => void }) {
     setSpinning(true)
     setJustWon(null)
     try {
+      const start = performance.now()
       const wonId = await spendAndUnlock(
         household.id,
         shuffled(HOUSEWORK_TIPS.map((t) => t.id)),
         SPIN_COST,
         earned,
       )
-      // Small pause so the button's spinning state reads as a draw.
-      await new Promise((r) => setTimeout(r, 600))
+      // Let the reel spin for at least MIN_SPIN_MS regardless of how fast
+      // the transaction resolved, so the draw always reads as a draw.
+      const elapsed = performance.now() - start
+      if (elapsed < MIN_SPIN_MS) await new Promise((r) => setTimeout(r, MIN_SPIN_MS - elapsed))
       setJustWon(HOUSEWORK_TIPS.find((t) => t.id === wonId) ?? null)
+      setBurst((b) => b + 1)
     } catch (e) {
       if (e instanceof NotEnoughCloversError) setError('クローバーが足りませんでした。')
       else if (e instanceof AllTipsUnlockedError) setError('すべて開放済みです。')
@@ -184,7 +259,8 @@ export function GachaScreen({ onClose }: { onClose: () => void }) {
         </div>
 
         {justWon && (
-          <div className="mt-4 animate-[fadeIn_0.3s_ease-out] rounded-[28px] border-4 border-[#ffd166] bg-[#fffdf5] p-5 shadow-[0_6px_0_rgba(180,130,40,0.35)] dark:bg-neutral-900">
+          <div className="relative mt-4 animate-[popIn_0.4s_cubic-bezier(0.34,1.56,0.64,1)] overflow-hidden rounded-[28px] border-4 border-[#ffd166] bg-[#fffdf5] p-5 shadow-[0_6px_0_rgba(180,130,40,0.35)] dark:bg-neutral-900">
+            <Confetti key={burst} />
             <p className="text-center text-xs font-bold text-[#c08d55]">あたらしいTIPS</p>
             <div className="mt-3">
               <TipArt tip={justWon} isDark={isDark} size="lg" />
@@ -240,6 +316,7 @@ export function GachaScreen({ onClose }: { onClose: () => void }) {
       </div>
 
       {viewing && <TipDetailSheet tip={viewing} isDark={isDark} onClose={() => setViewing(null)} />}
+      {spinning && <SpinOverlay emoji={reelEmoji} />}
     </div>
   )
 }
