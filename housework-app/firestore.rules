@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /users/{uid} {
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Lookup table so a joining user can resolve an invite code to a
+    // household id without being able to list/browse all households.
+    match /inviteCodes/{code} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create: if isSignedIn() &&
+        request.resource.data.keys().hasOnly(['householdId', 'createdAt']) &&
+        request.resource.data.householdId is string;
+      allow update, delete: if false;
+    }
+
+    match /households/{householdId} {
+      // A joining user must read the household doc (to check its current
+      // member count) *before* they're a member, as part of the join
+      // transaction — so this can't require membership. Same id-obscurity
+      // trade-off as chores/logs below: the id is an unguessable ~20-char
+      // Firestore auto-id, never exposed except to a household's own
+      // members or via its one-time invite code.
+      allow get: if isSignedIn();
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+        request.resource.data.members == [request.auth.uid] &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      // Existing members may edit anything except the members list itself.
+      allow update: if isSignedIn() &&
+        request.auth.uid in resource.data.members &&
+        request.resource.data.members == resource.data.members;
+
+      // Joining: a non-member may append themself as the 2nd member only.
+      allow update: if isSignedIn() &&
+        resource.data.members.size() < 2 &&
+        !(request.auth.uid in resource.data.members) &&
+        request.resource.data.members == resource.data.members.concat([request.auth.uid]);
+
+      allow delete: if false;
+
+      // Chores/logs deliberately don't re-check household membership via
+      // get() on the parent doc here: besides the extra round-trip, the
+      // Firestore emulator (and, per public reports, prod on occasion) can
+      // permanently break a get()-in-rules query listener that's
+      // unsubscribed and re-subscribed (e.g. switching tabs and back) —
+      // every subsequent snapshot then fails rule evaluation for that
+      // listener's lifetime, no retry recovers it. A household id is a
+      // random ~20-character Firestore auto-id that's never exposed except
+      // to its members (via their own users/{uid} doc or the one-time
+      // invite code), so requiring only sign-in here is an acceptable
+      // trade-off for this 2-person app rather than unguessable-by-id
+      // security.
+      match /chores/{choreId} {
+        allow read, write: if isSignedIn();
+      }
+
+      match /logs/{logId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+  }
+}

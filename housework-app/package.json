@@ -1,0 +1,35 @@
+{
+  "name": "housework-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "emulators": "npx --yes firebase-tools emulators:start --project demo-housework-app --only auth,firestore",
+    "firebase:setup": "node scripts/firebase-setup.mjs",
+    "deploy": "npm run build && npx --yes firebase-tools deploy --only hosting,firestore:rules",
+    "ci:env": "node scripts/ci-write-env.mjs",
+    "ci:deploy": "npx --yes firebase-tools deploy --only hosting,firestore:rules --project \"$FIREBASE_PROJECT_ID\" --token \"$FIREBASE_TOKEN\""
+  },
+  "dependencies": {
+    "firebase": "^12.16.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "recharts": "^3.9.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "oxlint": "^1.71.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vite-plugin-pwa": "^1.3.0"
+  }
+}

@@ -1,0 +1,158 @@
+# housework-app — 引き継ぎメモ
+
+夫婦・カップル2人で家事の分担を記録して見える化する Web PWA。
+
+> **注意**: このリポジトリのルートには**まったく無関係な社労士試験の学習アプリ**が
+> 同居しています。この `housework-app/` ディレクトリだけが家事分担アプリです。
+> ルートの `README.md` やソースは別アプリのものなので混同しないこと。
+
+## 基本情報
+
+| 項目 | 値 |
+| --- | --- |
+| 公開URL | https://housework-app-64a8b.web.app |
+| Firebaseプロジェクト | `housework-app-64a8b` |
+| 作業ブランチ | `claude/housework-sharing-app-hz8goj`（**mainには出していない**） |
+| デプロイ | 上記ブランチにpushすると GitHub Actions が自動でビルド＆デプロイ |
+| ワークフロー | `.github/workflows/deploy-housework-app.yml`（パスフィルタ `housework-app/**`） |
+| 必要なシークレット | `HOUSEWORK_FIREBASE_PROJECT_ID` / `HOUSEWORK_FIREBASE_TOKEN`（登録済み） |
+| エミュレータのproject id | `demo-housework-app` |
+
+技術構成: React + TypeScript + Vite + Tailwind CSS v4 / Firebase (Auth匿名 +
+Firestore + Hosting) / vite-plugin-pwa。
+
+## 開発と検証の進め方（このプロジェクトの流儀）
+
+毎回この手順で進めてきたので踏襲すること。
+
+```bash
+cd housework-app
+npx tsc -b && npm run build          # 型とビルド
+npx firebase emulators:start --project demo-housework-app &
+npx vite --port 5183 --strictPort &
+# Playwrightで実際に操作して確認（下記）
+```
+
+- **Playwrightで必ず実機確認する**。`/opt/pw-browsers/chromium` を
+  `executablePath` に指定して使う。スクショはライト/ダーク両方見る。
+- 検証スクリプトは scratchpad に置き、**リポジトリには入れない**。
+- 家事の行を掴むセレクタ（むらぐらし版のホームで有効）:
+  `xpath=//span[contains(@class,"font-bold") and contains(text(),"夕食作り")]/ancestor::div[1]`
+- 2人での挙動は**ブラウザコンテキストを2つ**作り、設定画面から招待コードを
+  読み取って参加させる（`共有してください\s*\n\s*([A-Z0-9]{6})` で抽出できる）。
+- push前に `firestore-debug.log` などを消し、`git status` を確認してから
+  コミットする。コミットメッセージは日本語で「何を・なぜ・どう検証したか」を
+  書く（既存のログを参照）。ハーネスが求める `Co-Authored-By` と
+  `Claude-Session` のトレーラーを付ける。
+- push後は `mcp__github__actions_list` で当該コミットのrunを確認し、
+  **Build と Deploy の両ステップが `success`**（`skipped` でない）ことを
+  見てからユーザーに報告する。結果が大きすぎるので `python3` でJSONを
+  パースして必要な項目だけ取り出すこと。
+
+## データモデル（Firestore）
+
+```
+users/{uid}                     → { householdId, nickname }
+inviteCodes/{CODE}              → { householdId, createdAt }   6文字の招待コード
+households/{id}                 → Household
+households/{id}/chores/{id}     → Chore     家事マスタ
+households/{id}/logs/{id}       → ChoreLog  実施記録
+```
+
+`src/types.ts` が正。`Household` には `tipsUnlocked?: string[]` と
+`cloversSpent?: number`（ガチャ用）が乗っている。
+
+**スコアの原則**: `score = minutes × loadFactor` を**記録時に確定させて保存**する。
+あとから家事マスタの負荷係数を変えても過去の記録は動かない。`addLog` は渡された
+chore から `minutes`/`score` を導出するので、所要時間を上書きしたいときは
+`{ ...chore, minutes }` を渡せばよい（`logService` を変える必要はない）。
+
+## 画面と主要ファイル
+
+- `screens/HomeTab.tsx` — むらぐらし風のホーム。いえもりカード、きょうの
+  おてつだいボード、家事一覧（「やった！／とりけす」ボタン）、ガチャ入口。
+  **自分とパートナーのログを別々に持つ**（`selfLatestByChore` /
+  `partnerLatestByChore`）ので、片方が記録済みでももう片方が記録できる。
+  行の長押し → `home/QuickTimeSheet.tsx`（時刻＋所要時間を決めて記録）。
+- `screens/DashboardTab.tsx` + `screens/dashboard/*` — 分担比率、目標比率、
+  カテゴリ別、週次推移、家事別累計。recharts使用。
+- `screens/HistoryTab.tsx` — 日付ごとに区切った履歴。行タップで編集シート
+  （家事の変更・日時・所要時間）。CSV書き出しあり。
+- `screens/SettingsTab.tsx` + `screens/settings/*` — 世帯/招待コード、
+  メール連携、家事マスタの編集。
+- `screens/gacha/GachaScreen.tsx` — 🍀を消費して家事のTIPSを開放（後述）。
+
+共通: `lib/categoryStyle.ts`（カテゴリの絵文字と色）、`lib/chartColors.ts`
+（自分=テラコッタ / パートナー=オリーブ）、`lib/date.ts`（日付書式一式）、
+`hooks/useLongPress.ts`、`lib/subscribeWithRetry.ts`。
+
+## デザイン
+
+「むらぐらし風」＝丸ゴシック（Zen Maru Gothic）、太い白フチ、押すと沈む3D
+ボタン、空〜草のグラデーション。背景は `src/index.css` の body に一本化して
+あり、**全タブで共有**している（画面ごとに背景を持たせないこと）。
+
+- 自分／パートナーの識別色は `memberColor()` のテラコッタ `#c2683f` /
+  オリーブ `#8a9963`。この2色はCVDの分離基準を単体では満たさないが、
+  **必ずニックネームのラベルと併記される**ことを根拠に採用している
+  （`lib/chartColors.ts` のコメント参照）。ラベルなしで色だけに意味を
+  持たせる使い方はしないこと。
+- キャラクター「いえもり」（フルネーム: **いえもり しげる**、UIには出さない）。
+  画像は `public/iemori.png`。吹き出しの台詞は20種で、うち2種は
+  「どちらが多く動いているか」「時間帯」で変わる。
+
+## ガチャと家事のTIPS
+
+🍀を消費して家事のTIPSを1つずつ開放していく仕組み。
+
+- **残高 = 累計獲得（全ログの `minutes × 10`）− `cloversSpent`**。獲得側を
+  都度計算にしているので、記録の取り消しや分数編集に自動追従する。表示は
+  マイナスを0で丸める（判定には実値を使う）。
+- 1回 `SPIN_COST = 500`。**未開放のものだけ**排出（重複なし）。
+- 抽選と残高検証は `lib/gachaService.ts` の**トランザクション内**で行う。
+  2人が同時に回しても二重消費しない（検証済み）。
+- ホーム右上の🍀ピルは**今日の分**、使える残高は**ガチャ画面のみ**。これは
+  起動時に全ログを読まないための意図的な切り分け。
+
+### TIPSのイラスト（未着手・次にやること）
+
+`src/data/houseworkTips.ts` に16件。`image` は**任意項目**で、未設定なら
+カテゴリ絵文字で表示される。`public/tips/xxx.webp` を置いて `image` に
+パスを書けば差し替わる。**WebP・長辺800px・1枚40〜60KB**を目安に。
+
+Figmaコネクタはアカウントに接続済み。会話によってオフのことがあるので、
+使うならチャットのコネクタ設定で有効化してもらう。フラットなベクター絵は
+作れるが、いえもり（写実的な鳥）とは画風が変わる点は要相談。
+
+## 落とし穴（実際に踏んで解決したもの。壊さないこと）
+
+1. **PWAのプリキャッシュに画像を入れない**
+   `vite.config.ts` の `globPatterns` は dist 配下の png を全部拾う。TIPSの絵は
+   `globIgnores: ['tips/**']` で除外し、CacheFirst のランタイムキャッシュに
+   回している。これを外すと、絵を足すたびにインストール時と更新のたびに
+   全部ダウンロードされ、**起動が重くなる**（ユーザーが最も気にしている点）。
+   現状の実測: 初期JS 1,283.78 kB / プリキャッシュ11件 1,604 KiB。
+   ガチャ画面とTIPS本文は `React.lazy` で別チャンク（11.9 kB）。
+
+2. **セキュリティルールで `get()` を使わない**
+   `firestore.rules` の chores/logs は `isSignedIn()` だけで判定している。
+   親ドキュメントを `get()` で参照するルールにすると、リスナーを解除→再購読
+   （タブ切り替えなど）した瞬間に**そのリスナーが永久に壊れる**事象を
+   エミュレータで再現した。世帯IDが推測困難な20文字のauto-idであることを
+   根拠にした割り切り。ルール内のコメントに経緯あり。
+
+3. **Blobダウンロードのファイル名は必ずASCII**
+   `blob:` URL のダウンロードでファイル名に日本語を入れると、Chromiumが
+   拡張子ごと捨てて `download` にしてしまう（Playwrightの都合ではなく実挙動）。
+   CSVは中身は日本語、ファイル名は `housework-log_YYYY-MM-DD.csv` にしている。
+
+4. **世帯ドキュメントへのフィールド追加はルール変更不要**
+   既存ルールで「メンバーは `members` 以外を更新可」になっている。
+
+## 残っている検討事項
+
+- **ダッシュボードと履歴に青いアクセントが残っている**（「今週/今月」の切替、
+  目標比率スライダー、「CSVで書き出す」の文字色）。背景を村の配色に統一した
+  ことで浮いて見える。テラコッタ系に寄せるか未決（ユーザーに投げた状態）。
+- ダッシュボードのむらぐらし版デザイン（共有デザインの「2a」）は未着手。
+- TIPSのイラスト（上記）。
