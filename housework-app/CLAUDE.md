@@ -70,10 +70,16 @@ chore から `minutes`/`score` を導出するので、所要時間を上書き�
 ## 画面と主要ファイル
 
 - `screens/HomeTab.tsx` — むらぐらし風のホーム。いえもりカード、きょうの
-  おてつだいボード、家事一覧（「やった！／とりけす」ボタン）、ガチャ入口。
-  **自分とパートナーのログを別々に持つ**（`selfLatestByChore` /
-  `partnerLatestByChore`）ので、片方が記録済みでももう片方が記録できる。
-  行の長押し → `home/QuickTimeSheet.tsx`（時刻＋所要時間を決めて記録）。
+  おてつだいボード、家事一覧、ガチャ入口。
+  **自分とパートナーのログを別々に持つ**（`selfInfoByChore` /
+  `partnerInfoByChore`、各々 `{ latest, count }`）ので、片方が記録済みでも
+  もう片方が記録できる。ボタンは常に「やった！」で、同じ人が同じ家事を
+  今日すでに記録していても押すたびに新しい記録が追加される（1日に何度も
+  やる家事を想定）。2回目以降は行に「本日N回」と出す。取り消しは
+  記録直後のトースト（`ToastContext`、4秒間「取り消す」が出る）と、
+  `HistoryTab.tsx` での個別編集/削除で行う（ホームに常設の「とりけす」
+  ボタンはない）。行の長押し → `home/QuickTimeSheet.tsx`（時刻＋所要時間を
+  決めて記録）。
 - `screens/DashboardTab.tsx` + `screens/dashboard/*` — 分担比率、目標比率、
   カテゴリ別、週次推移、家事別累計。recharts使用。
 - `screens/HistoryTab.tsx` — 日付ごとに区切った履歴。行タップで編集シート

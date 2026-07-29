@@ -117,6 +117,12 @@ interface BoardDot {
   partnerColor: string
 }
 
+/** Latest log + how many times that person recorded this chore today. */
+interface ChoreDoneInfo {
+  latest: ChoreLog
+  count: number
+}
+
 function TodayBoardCard({
   doneCount,
   total,
@@ -196,23 +202,21 @@ function GachaEntryCard({
 
 function ChoreVillageRow({
   chore,
-  selfLog,
-  partnerLog,
+  selfInfo,
+  partnerInfo,
   selfName,
   partnerName,
   isDark,
   onTap,
-  onUndo,
   onLongPress,
 }: {
   chore: Chore
-  selfLog: ChoreLog | null
-  partnerLog: ChoreLog | null
+  selfInfo: ChoreDoneInfo | null
+  partnerInfo: ChoreDoneInfo | null
   selfName: string
   partnerName: string
   isDark: boolean
   onTap: (chore: Chore) => void
-  onUndo: (log: ChoreLog) => void
   onLongPress: (chore: Chore) => void
 }) {
   const press = useLongPress(
@@ -240,16 +244,18 @@ function ChoreVillageRow({
         <span className="block truncate font-bold text-[#4e4133] dark:text-white">
           {chore.name}
         </span>
-        {selfLog || partnerLog ? (
+        {selfInfo || partnerInfo ? (
           <span className="mt-0.5 flex flex-col gap-0.5">
-            {selfLog && (
+            {selfInfo && (
               <span className="block text-[11.5px] font-bold" style={{ color: selfColor }}>
-                {selfName}がやってくれた ・ {formatTime(selfLog.doneAt)}
+                {selfName}がやってくれた ・ {formatTime(selfInfo.latest.doneAt)}
+                {selfInfo.count > 1 && ` ・ 本日${selfInfo.count}回`}
               </span>
             )}
-            {partnerLog && (
+            {partnerInfo && (
               <span className="block text-[11.5px] font-bold" style={{ color: partnerColor }}>
-                {partnerName}がやってくれた ・ {formatTime(partnerLog.doneAt)}
+                {partnerName}がやってくれた ・ {formatTime(partnerInfo.latest.doneAt)}
+                {partnerInfo.count > 1 && ` ・ 本日${partnerInfo.count}回`}
               </span>
             )}
           </span>
@@ -263,13 +269,12 @@ function ChoreVillageRow({
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          if (selfLog) onUndo(selfLog)
-          else onTap(chore)
+          onTap(chore)
         }}
         className="shrink-0 rounded-full border-[3px] border-white px-4 py-2.5 text-[12.5px] font-bold text-[#6b4a17] shadow-[0_4px_0_rgba(180,130,40,0.45)] transition active:translate-y-[3px] active:shadow-[0_1px_0_rgba(180,130,40,0.45)] dark:border-neutral-800"
         style={{ background: 'linear-gradient(180deg,#ffd166,#f3b23f)' }}
       >
-        {selfLog ? 'とりけす' : 'やった！'}
+        やった！
       </button>
     </div>
   )
@@ -383,15 +388,18 @@ export function HomeTab() {
   const selfName = myNickname || 'あなた'
   const partnerName = (partnerUid ? household?.nicknames?.[partnerUid] : undefined) || 'パートナー'
 
-  // Most recent log today per chore, tracked separately per person — so
+  // Latest log + today's count per chore, tracked separately per person — so
   // one person having already logged a chore never blocks the other from
   // recording their own instance of it (each person's row state is their
-  // own, not "whoever logged it last").
-  const selfLatestByChore = new Map<string, ChoreLog>()
-  const partnerLatestByChore = new Map<string, ChoreLog>()
+  // own, not "whoever logged it last"), and repeating the same chore today
+  // just increments that person's own count instead of hiding the button.
+  const selfInfoByChore = new Map<string, ChoreDoneInfo>()
+  const partnerInfoByChore = new Map<string, ChoreDoneInfo>()
   for (const log of todayLogs) {
-    const byMap = log.userId === user?.uid ? selfLatestByChore : partnerLatestByChore
-    if (!byMap.has(log.choreId)) byMap.set(log.choreId, log)
+    const byMap = log.userId === user?.uid ? selfInfoByChore : partnerInfoByChore
+    const existing = byMap.get(log.choreId)
+    if (existing) existing.count++
+    else byMap.set(log.choreId, { latest: log, count: 1 })
   }
 
   const selfColor = memberColor(true, isDark)
@@ -401,8 +409,8 @@ export function HomeTab() {
   let doneCount = 0
   const dots: BoardDot[] = []
   for (const chore of favorites) {
-    const selfDone = selfLatestByChore.has(chore.id)
-    const partnerDone = partnerLatestByChore.has(chore.id)
+    const selfDone = selfInfoByChore.has(chore.id)
+    const partnerDone = partnerInfoByChore.has(chore.id)
     if (selfDone) meCount++
     if (partnerDone) youCount++
     if (selfDone || partnerDone) doneCount++
@@ -435,11 +443,6 @@ export function HomeTab() {
 
   function handleTap(chore: Chore) {
     recordAt(chore, Date.now())
-  }
-
-  function handleUndo(log: ChoreLog) {
-    if (!household) return
-    deleteLog(household.id, log.id)
   }
 
   function handleLongPress(chore: Chore) {
@@ -492,13 +495,12 @@ export function HomeTab() {
           <ChoreVillageRow
             key={chore.id}
             chore={chore}
-            selfLog={selfLatestByChore.get(chore.id) ?? null}
-            partnerLog={partnerLatestByChore.get(chore.id) ?? null}
+            selfInfo={selfInfoByChore.get(chore.id) ?? null}
+            partnerInfo={partnerInfoByChore.get(chore.id) ?? null}
             selfName={selfName}
             partnerName={partnerName}
             isDark={isDark}
             onTap={handleTap}
-            onUndo={handleUndo}
             onLongPress={handleLongPress}
           />
         ))}
