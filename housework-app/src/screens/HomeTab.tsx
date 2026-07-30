@@ -232,7 +232,9 @@ function ChoreVillageRow({
       onPointerMove={press.onPointerMove}
       onPointerUp={press.onPointerUp}
       onPointerLeave={press.onPointerLeave}
-      className="flex items-center gap-3 rounded-[24px] border-4 border-white bg-[#fffdf5] px-3 py-3 shadow-[0_5px_0_rgba(120,140,90,0.22)] dark:border-neutral-700 dark:bg-neutral-900"
+      onPointerCancel={press.onPointerCancel}
+      onContextMenu={press.onContextMenu}
+      className="long-pressable flex items-center gap-3 rounded-[24px] border-4 border-white bg-[#fffdf5] px-3 py-3 shadow-[0_5px_0_rgba(120,140,90,0.22)] dark:border-neutral-700 dark:bg-neutral-900"
     >
       <span
         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-white/90 text-xl dark:border-neutral-800"
@@ -299,7 +301,7 @@ function AllChoresRow({
     <button
       type="button"
       {...press}
-      className="flex items-center gap-3 rounded-2xl bg-neutral-50 px-3 py-3 text-left active:bg-neutral-100 dark:bg-neutral-800 dark:active:bg-neutral-700"
+      className="long-pressable flex items-center gap-3 rounded-2xl bg-neutral-50 px-3 py-3 text-left active:bg-neutral-100 dark:bg-neutral-800 dark:active:bg-neutral-700"
     >
       <span
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xl"

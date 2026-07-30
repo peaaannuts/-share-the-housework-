@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { categoryChipColor, categoryEmoji } from '../../lib/categoryStyle'
 import { hoursAgo, toLocalInputValue, todayAt, yesterdayAt } from '../../lib/date'
 import { useIsDark } from '../../lib/theme'
@@ -26,6 +26,12 @@ export function QuickTimeSheet({
   onClose: () => void
 }) {
   const isDark = useIsDark()
+  // The backdrop closes only when the press *started* on it. This sheet is
+  // opened by a long-press on a row underneath, so lifting the finger fires a
+  // click straight onto the freshly mounted backdrop — without this guard the
+  // sheet would open and close again in the same gesture (looked on iPhone
+  // like the long-press did nothing at all).
+  const pressStartedOnBackdrop = useRef(false)
   const [showCustom, setShowCustom] = useState(false)
   const [customValue, setCustomValue] = useState(() => toLocalInputValue(Date.now()))
   // Seeded with the chore's standard duration; whichever time the user then
@@ -36,7 +42,15 @@ export function QuickTimeSheet({
   const minutesValid = minutes.trim() !== '' && Number.isFinite(minutesNum) && minutesNum > 0
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end bg-black/40"
+      onPointerDown={(e) => {
+        pressStartedOnBackdrop.current = e.target === e.currentTarget
+      }}
+      onClick={() => {
+        if (pressStartedOnBackdrop.current) onClose()
+      }}
+    >
       <div
         className="w-full rounded-t-3xl bg-white p-4 pb-8 dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}

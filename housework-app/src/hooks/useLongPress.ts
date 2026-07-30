@@ -24,6 +24,29 @@ export function useLongPress(onTap: () => void, onLongPress: () => void) {
     }
   }
 
+  /**
+   * Eats the single `click` the browser emits when the finger lifts after a
+   * long-press. By then the long-press has usually mounted something (a sheet)
+   * right under the finger, and that click would land on whatever is now
+   * there — on the home rows it hit a preset button inside the freshly opened
+   * QuickTimeSheet, recording a bogus entry and closing it again, which read
+   * as "the long-press does nothing". Capture phase, so it never reaches
+   * React's root listener.
+   */
+  function swallowNextClick() {
+    const onCapture = (e: MouseEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      window.clearTimeout(giveUp)
+    }
+    document.addEventListener('click', onCapture, { capture: true, once: true })
+    // If no click follows (gesture cancelled, click never dispatched), don't
+    // leave the listener armed to eat an unrelated tap later on.
+    const giveUp = window.setTimeout(() => {
+      document.removeEventListener('click', onCapture, { capture: true })
+    }, 400)
+  }
+
   function onPointerDown(e: ReactPointerEvent) {
     // Only the primary button/touch/pen contact starts a press.
     if (e.button !== undefined && e.button !== 0) return
@@ -46,10 +69,27 @@ export function useLongPress(onTap: () => void, onLongPress: () => void) {
 
   function onPointerUp() {
     clear()
+    // Armed on release rather than when the timer fires, because the press can
+    // be held for any length of time and the click follows the release.
+    if (firedRef.current) swallowNextClick()
   }
 
   function onPointerLeave() {
     clear()
+  }
+
+  /**
+   * Fired when the browser takes the gesture over (scroll started, iOS
+   * selection/callout kicked in). No pointerup follows, so the pending
+   * timer has to be dropped here or it would fire mid-scroll.
+   */
+  function onPointerCancel() {
+    clear()
+  }
+
+  /** Long-press on touch also raises contextmenu; the app owns that gesture. */
+  function onContextMenu(e: { preventDefault: () => void }) {
+    e.preventDefault()
   }
 
   function onClick(e: { preventDefault: () => void }) {
@@ -67,6 +107,8 @@ export function useLongPress(onTap: () => void, onLongPress: () => void) {
     onPointerMove,
     onPointerUp,
     onPointerLeave,
+    onPointerCancel,
+    onContextMenu,
     onClick,
   }
 }

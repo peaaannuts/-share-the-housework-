@@ -54,3 +54,16 @@ button {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Rows that implement their own long-press gesture (useLongPress).
+   Without this, iOS Safari starts its own ~500ms text-selection / callout
+   gesture on a plain <div> and steals the press, so the long-press never
+   reaches the app. Buttons are exempt from that by default, which is why
+   only the rows inside the "すべての家事" sheet used to respond. */
+.long-pressable {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
