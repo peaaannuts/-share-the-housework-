@@ -43,7 +43,7 @@ export function QuickTimeSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end bg-black/40"
+      className="sheet-overlay z-50 flex items-end bg-black/40"
       onPointerDown={(e) => {
         pressStartedOnBackdrop.current = e.target === e.currentTarget
       }}
@@ -52,7 +52,7 @@ export function QuickTimeSheet({
       }}
     >
       <div
-        className="w-full rounded-t-3xl bg-white p-4 pb-8 dark:bg-neutral-900"
+        className="sheet-panel max-h-[85dvh] w-full rounded-t-3xl bg-white p-4 dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-neutral-200 dark:bg-neutral-700" />

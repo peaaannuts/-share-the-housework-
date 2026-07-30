@@ -27,9 +27,9 @@ export function ChoreEditForm({
   const [isFavorite, setIsFavorite] = useState(initial?.isFavorite ?? false)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
+    <div className="sheet-overlay z-50 flex items-end bg-black/40" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 dark:bg-neutral-900"
+        className="sheet-panel max-h-[85dvh] w-full rounded-t-2xl bg-white p-5 dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-white">

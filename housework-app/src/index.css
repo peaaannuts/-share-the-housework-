@@ -55,6 +55,31 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Bottom sheets（すべての家事メニュー / 時刻ピッカー / 各編集フォーム）。
+
+   iOS Safari の `vh` は「ツールバーが隠れている状態」のビューポートを指すため、
+   `fixed inset-0` のオーバーレイに `vh` 上限のシートを下端揃えで置くと、
+   シートの下部がブラウザのツールバーの下に潜り込む。スクロールする一覧では
+   最後のほうの行が画面外に取り残されてタップできなくなる ——「すべての家事」で
+   洗濯物を畳む・しまう から下が反応しなかったのはこれ。`dvh` は「いま実際に
+   見えているビューポート」に追従するので、これを使う。
+   （Tailwind v4 自体が Safari 16.4+ を要求しているので dvh は必ず使える） */
+.sheet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100dvh;
+}
+
+/* 最後の行をホームインジケータにかぶせない。加えて、一覧の端まで来たときに
+   背後のページを引っぱらないようにする。 */
+.sheet-panel {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: max(2rem, env(safe-area-inset-bottom));
+}
+
 /* Rows that implement their own long-press gesture (useLongPress).
    Without this, iOS Safari starts its own ~500ms text-selection / callout
    gesture on a plain <div> and steals the press, so the long-press never

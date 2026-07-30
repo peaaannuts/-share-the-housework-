@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
 const LONG_PRESS_MS = 500
@@ -16,6 +16,19 @@ export function useLongPress(onTap: () => void, onLongPress: () => void) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const firedRef = useRef(false)
   const startRef = useRef<{ x: number; y: number } | null>(null)
+  const disarmRef = useRef<(() => void) | null>(null)
+
+  // Only the pending press is dropped on unmount. An armed click swallow is
+  // deliberately left in place: the row is usually unmounted *by* its own
+  // long-press (the chore menu closes as it opens the time sheet), and the
+  // click it has to eat has not arrived yet. Those listeners always take
+  // themselves off — on the click, or shortly after the finger lifts.
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    },
+    [],
+  )
 
   function clear() {
     if (timerRef.current) {
@@ -26,25 +39,47 @@ export function useLongPress(onTap: () => void, onLongPress: () => void) {
 
   /**
    * Eats the single `click` the browser emits when the finger lifts after a
-   * long-press. By then the long-press has usually mounted something (a sheet)
-   * right under the finger, and that click would land on whatever is now
-   * there — on the home rows it hit a preset button inside the freshly opened
-   * QuickTimeSheet, recording a bogus entry and closing it again, which read
-   * as "the long-press does nothing". Capture phase, so it never reaches
-   * React's root listener.
+   * long-press. By then the long-press has mounted something (a sheet) right
+   * under the finger, and that click lands on whatever is now there — a preset
+   * button inside the freshly opened QuickTimeSheet, say, which records a
+   * bogus entry and closes the sheet again. That read as "the long-press does
+   * nothing", and it only bit on some rows, because whether it broke anything
+   * depended on what happened to sit under that screen position.
+   *
+   * Everything hangs off `document`, and it is armed the moment the press
+   * fires rather than on the element's own pointerup: the pressed element is
+   * often unmounted by the long-press itself (the chore menu closes as it
+   * opens the time sheet), and an unmounted element never sees pointerup.
    */
-  function swallowNextClick() {
-    const onCapture = (e: MouseEvent) => {
+  function armClickSwallow() {
+    disarmRef.current?.()
+
+    const swallow = (e: MouseEvent) => {
       e.stopPropagation()
       e.preventDefault()
-      window.clearTimeout(giveUp)
+      disarm()
     }
-    document.addEventListener('click', onCapture, { capture: true, once: true })
-    // If no click follows (gesture cancelled, click never dispatched), don't
-    // leave the listener armed to eat an unrelated tap later on.
-    const giveUp = window.setTimeout(() => {
-      document.removeEventListener('click', onCapture, { capture: true })
-    }, 400)
+    // The click is dispatched right after pointerup, so a short grace period
+    // past the release is enough — and it makes sure a later, unrelated tap
+    // is never eaten no matter how long the press was held.
+    const onRelease = () => {
+      window.clearTimeout(graceTimer)
+      graceTimer = window.setTimeout(disarm, 400)
+    }
+    let graceTimer = 0
+
+    function disarm() {
+      window.clearTimeout(graceTimer)
+      document.removeEventListener('click', swallow, true)
+      document.removeEventListener('pointerup', onRelease, true)
+      document.removeEventListener('pointercancel', onRelease, true)
+      if (disarmRef.current === disarm) disarmRef.current = null
+    }
+
+    document.addEventListener('click', swallow, true)
+    document.addEventListener('pointerup', onRelease, true)
+    document.addEventListener('pointercancel', onRelease, true)
+    disarmRef.current = disarm
   }
 
   function onPointerDown(e: ReactPointerEvent) {
@@ -55,6 +90,7 @@ export function useLongPress(onTap: () => void, onLongPress: () => void) {
     clear()
     timerRef.current = setTimeout(() => {
       firedRef.current = true
+      armClickSwallow()
       onLongPress()
     }, LONG_PRESS_MS)
   }
@@ -69,9 +105,6 @@ export function useLongPress(onTap: () => void, onLongPress: () => void) {
 
   function onPointerUp() {
     clear()
-    // Armed on release rather than when the timer fires, because the press can
-    // be held for any length of time and the click follows the release.
-    if (firedRef.current) swallowNextClick()
   }
 
   function onPointerLeave() {

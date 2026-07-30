@@ -82,9 +82,9 @@ function EditSheet({
   const minutesValid = minutes.trim() !== '' && Number.isFinite(minutesNum) && minutesNum > 0
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
+    <div className="sheet-overlay z-50 flex items-end bg-black/40" onClick={onClose}>
       <div
-        className="w-full rounded-t-2xl bg-white p-5 pb-8 dark:bg-neutral-900"
+        className="sheet-panel max-h-[85dvh] w-full rounded-t-2xl bg-white p-5 dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="mb-4 text-lg font-semibold text-neutral-900 dark:text-white">

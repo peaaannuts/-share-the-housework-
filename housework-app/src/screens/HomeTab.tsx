@@ -331,9 +331,9 @@ function AllChoresSheet({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={onClose}>
+    <div className="sheet-overlay z-50 flex items-end bg-black/40" onClick={onClose}>
       <div
-        className="max-h-[75vh] w-full overflow-y-auto rounded-t-3xl bg-white p-4 pb-8 dark:bg-neutral-900"
+        className="sheet-panel max-h-[75dvh] w-full rounded-t-3xl bg-white p-4 dark:bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-neutral-200 dark:bg-neutral-700" />
