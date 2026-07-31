@@ -219,8 +219,12 @@ function ChoreVillageRow({
   onTap: (chore: Chore) => void
   onLongPress: (chore: Chore) => void
 }) {
+  // One gesture for the whole row. The 「やった！」 button sits inside it, so a
+  // press that starts on the button is the same press — routing its click back
+  // through the hook keeps "tap records / long-press opens the sheet" decided
+  // in one place instead of the button having a second, independent opinion.
   const press = useLongPress(
-    () => {},
+    () => onTap(chore),
     () => onLongPress(chore),
   )
   const selfColor = memberColor(true, isDark)
@@ -271,9 +275,9 @@ function ChoreVillageRow({
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          onTap(chore)
+          press.onClick(e)
         }}
-        className="shrink-0 rounded-full border-[3px] border-white px-4 py-2.5 text-[12.5px] font-bold text-[#6b4a17] shadow-[0_4px_0_rgba(180,130,40,0.45)] transition active:translate-y-[3px] active:shadow-[0_1px_0_rgba(180,130,40,0.45)] dark:border-neutral-800"
+        className="long-pressable shrink-0 rounded-full border-[3px] border-white px-4 py-2.5 text-[12.5px] font-bold text-[#6b4a17] shadow-[0_4px_0_rgba(180,130,40,0.45)] transition active:translate-y-[3px] active:shadow-[0_1px_0_rgba(180,130,40,0.45)] dark:border-neutral-800"
         style={{ background: 'linear-gradient(180deg,#ffd166,#f3b23f)' }}
       >
         やった！
