@@ -231,26 +231,42 @@ Figmaコネクタはアカウントに接続済み。会話によってオフの
    要素を都合よく中央寄せしてしまうため、実際に「スクロールで下端から
    現れた直後」を再現できず、この種のバグを一度見逃した）。
 
-8. **開いた直後は `TabBar` が出ず、スクロールすると出る**
-   （`TabBar.tsx` の `[will-change:transform]`）
-   iOS Safari / WebKit の既知の挙動: `position: fixed` 要素は、初回ペイント後
-   にページの高さが伸びる（このアプリでは `HomeTab` がFirestoreの購読
-   （`useChores`/`useLogsInRange`等）で非同期にデータを受け取り、後から
-   コンテンツが伸びる）と、ブラウザ側のコンポジットレイヤーが古いまま
-   固定されてしまい、スクロール（＝強制リフロー）が起きるまで正しい位置に
-   再描画されないことがある。原因は `TabBar` 自身のCSSではなく非同期な
-   高さの変化なので、`TabBar.tsx`/`App.tsx` を一切変更していなくても、
-   お気に入りを増やして「初回ペイント後に1画面に収まらなくなる」度合いが
-   強まると発火しやすくなる。
-   対策は `<nav>` に `will-change: transform` を付け、WebKitに早期の
-   レイヤー昇格を促すこと（見た目・レイアウトは変えない、標準的な対処）。
+8. **`TabBar` を `position: fixed` にしない**（`App.tsx` の flex 構造 /
+   `TabBar.tsx`）
+   以前は `TabBar` が `fixed bottom-0` で、`HomeTab` 側は `body`/`html` の
+   スクロールに乗る作りだった。iOS Safari/WebKitには、`position: fixed`
+   要素のコンポジットレイヤーが「そのとき点」のドキュメント座標に貼り付いて
+   しまう既知の不具合があり、初回ペイント後にページの高さが伸びると
+   （`HomeTab` はFirestoreの購読で非同期にデータを受け取り後からコンテンツが
+   伸びる）、TabBarが正しくビューポート追従せず、開いた直後は非表示、または
+   一覧の途中に挟まって表示される、という2種類の壊れ方を実機で確認した
+   （`will-change: transform` で早期レイヤー昇格を促す対処を最初に試したが、
+   むしろ「早い段階の座標に貼り付く」タイミングを固定してしまい、一覧の
+   途中に挟まる症状の方を悪化させたと考えられる）。
 
-   **この不具合はWebKit固有のコンポジット挙動で、このプロジェクトの検証
-   環境（Chromiumベース）では再現できない。** Playwrightでの確認は「壊して
-   いないこと」（TabBarの見た目・位置・重なり順）に留まり、「直った」ことの
-   証明にはならない。効かない場合の次の一手は、マウント直後に
-   `window.scrollTo(0,1)`→`scrollTo(0,0)` を1回強制発火してコンポジットを
-   強制的にやり直させる、より確実だがハック的な手段。
+   根治策として `position: fixed` 自体をやめた。`App.tsx` の `AppShell` を
+   `flex h-dvh flex-col overflow-hidden` にし、タブのコンテンツ領域を
+   `min-h-0 flex-1 overflow-y-auto overscroll-contain` で**独立してスクロール
+   する箱**にした上で、`TabBar` はその下に並ぶ**ただの flex 兄弟**
+   （`shrink-0`、`position` 指定なし）にした。`body`/`html` 自体はもう
+   スクロールしない。これで TabBar は常にコンテンツ領域の外側・flexレイアウト
+   の末尾にあり、ビューポート座標の計算をブラウザに委ねる必要がなくなる
+   ——このクラスの不具合が構造的に起こり得ない。
+
+   副作用として、`ChoreVillageRow` の `relative z-[45]`
+   （TabBarとの重なり対策、上記7番）は**もう起こり得ない状況への保険**に
+   なった。実害はないのでそのまま残してある。
+
+   **この不具合クラス自体（WebKitのコンポジット挙動）はChromiumベースの
+   検証環境では再現できない。** Playwrightでの確認は「TabBarが常にビュー
+   ポート下端＝`getBoundingClientRect().bottom === innerHeight` であること」
+   「お気に入りを13件に増やして非同期にコンテンツが伸びても崩れないこと」
+   「シートがTabBarより手前に来ること」「4タブすべてで独立してスクロール
+   できること」に留まる。`window.scrollTo` を使う既存の検証スクリプトは
+   もう機能しない（スクロールする箱が `body` ではなくなったため）——
+   `document.querySelectorAll('div')).find(d => getComputedStyle(d).overflowY
+   === 'auto')` でスクロールコンテナを探して `el.scrollTo(...)` する必要が
+   ある。
 
 ## 残っている検討事項
 

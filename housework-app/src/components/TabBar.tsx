@@ -9,13 +9,12 @@ const TABS: { key: TabKey; label: string; icon: string }[] = [
 
 export function TabBar({ active, onChange }: { active: TabKey; onChange: (tab: TabKey) => void }) {
   return (
-    // will-change: transform — hints WebKit to promote this fixed nav onto its
-    // own compositing layer immediately on mount, instead of only once a
-    // scroll event forces a re-layer. Without it, iOS Safari can leave a
-    // position:fixed element mispositioned (invisible/off-screen) right after
-    // load if page content grows after first paint (as ours does — Firestore
-    // data for the chore list arrives async), until the user scrolls once.
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-black/5 bg-white/85 backdrop-blur-lg [will-change:transform] dark:border-white/10 dark:bg-neutral-900/85">
+    // Not `position: fixed` — App.tsx puts this in a flex column as a normal,
+    // always-in-place sibling of the scrollable content area, so it can't
+    // suffer WebKit's "fixed element frozen at a stale document position"
+    // bug (see App.tsx for the full story). `shrink-0` keeps it from being
+    // compressed by the flex layout.
+    <nav className="shrink-0 border-t border-black/5 bg-white/85 backdrop-blur-lg dark:border-white/10 dark:bg-neutral-900/85">
       <div className="mx-auto flex max-w-lg justify-around px-2 pb-[env(safe-area-inset-bottom)] pt-1.5">
         {TABS.map((tab) => {
           const isActive = active === tab.key

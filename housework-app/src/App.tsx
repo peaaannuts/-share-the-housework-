@@ -32,12 +32,24 @@ function AppShell() {
     return <OnboardingScreen />
   }
 
+  // Own-scroll-container layout instead of a `position: fixed` bottom nav
+  // over document/body scroll. iOS WebKit has known bugs where a fixed
+  // element's position gets "frozen" at whatever document coordinate it
+  // happened to occupy when its compositing layer was established — as this
+  // app's content grows after first paint (Firestore data streaming in), a
+  // fixed TabBar could end up stuck mid-page instead of tracking the
+  // viewport bottom (reproduced on-device: the bar rendered spliced between
+  // two chore rows). A flex column with a bounded, independently-scrolling
+  // content area sidesteps the whole bug class — TabBar is a normal, always
+  // in-place flex sibling, never `position: fixed`.
   return (
-    <div className="min-h-full">
-      {tab === 'home' && <HomeTab />}
-      {tab === 'dashboard' && <DashboardTab />}
-      {tab === 'history' && <HistoryTab />}
-      {tab === 'settings' && <SettingsTab />}
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {tab === 'home' && <HomeTab />}
+        {tab === 'dashboard' && <DashboardTab />}
+        {tab === 'history' && <HistoryTab />}
+        {tab === 'settings' && <SettingsTab />}
+      </div>
       <TabBar active={tab} onChange={setTab} />
     </div>
   )
