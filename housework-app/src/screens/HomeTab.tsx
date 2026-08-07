@@ -238,7 +238,16 @@ function ChoreVillageRow({
       onPointerLeave={press.onPointerLeave}
       onPointerCancel={press.onPointerCancel}
       onContextMenu={press.onContextMenu}
-      className="long-pressable flex items-center gap-3 rounded-[24px] border-4 border-white bg-[#fffdf5] px-3 py-3 shadow-[0_5px_0_rgba(120,140,90,0.22)] dark:border-neutral-700 dark:bg-neutral-900"
+      // relative + z-[45]: the fixed TabBar (z-40) sits over the bottom of the
+      // viewport at every scroll position. Once favorites don't all fit on one
+      // screen, scrolling a row to rest in that band leaves it geometrically
+      // under the nav — a static element never wins a hit-test against a fixed,
+      // higher-stacked one, so the row's own pointerdown/click never fires
+      // (worse: the touch can land on an actual nav button and silently switch
+      // tabs). Outranking the nav here (still well under the z-50 sheets, which
+      // must keep covering everything including the nav) makes the row win
+      // wherever they visually overlap, matching what's actually on screen.
+      className="long-pressable relative z-[45] flex items-center gap-3 rounded-[24px] border-4 border-white bg-[#fffdf5] px-3 py-3 shadow-[0_5px_0_rgba(120,140,90,0.22)] dark:border-neutral-700 dark:bg-neutral-900"
     >
       <span
         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 border-white/90 text-xl dark:border-neutral-800"
