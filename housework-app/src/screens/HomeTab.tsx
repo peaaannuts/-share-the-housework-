@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
 import { useToast } from '../contexts/ToastContext'
@@ -120,7 +120,16 @@ function iemoriLines({
 function IemoriCard(ctx: IemoriContext) {
   const [lineIndex, setLineIndex] = useState(0)
   const lines = iemoriLines(ctx)
-  const { play, muted, toggleMuted } = useIemoriVoice()
+  const { play, muted, toggleMuted, prefetch } = useIemoriVoice()
+
+  // Warm the audio cache in the background so a normal-speed tap sequence
+  // plays from cache instead of racing a live network fetch (see
+  // useIemoriVoice.ts for why an in-flight fetch can otherwise get
+  // silently aborted by the next tap).
+  useEffect(() => {
+    prefetch(lines)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function handleTap() {
     const next = (lineIndex + 1) % lines.length

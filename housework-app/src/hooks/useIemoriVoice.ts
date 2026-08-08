@@ -57,5 +57,21 @@ export function useIemoriVoice() {
     })
   }
 
-  return { play, muted, toggleMuted }
+  // Warms the CacheFirst runtime cache (vite.config.ts) for every voiced
+  // line up front, in the background. Without this, tapping through lines
+  // faster than the network fetch of the *previous* tap's mp3 finishes
+  // aborts that fetch (pause() cancels the in-flight play()) — the line's
+  // audio never gets a chance to play even though nothing errors. Once
+  // these are cached, playback starts from disk instead of the network, so
+  // normal-speed tapping no longer races the fetch. Fire-and-forget: a
+  // failed prefetch just means that tap falls back to the old (still
+  // correct, just slower) live-fetch behavior.
+  function prefetch(lines: { key: string; hasVoice: boolean }[]) {
+    const keys = new Set(lines.filter((l) => l.hasVoice).map((l) => l.key))
+    for (const key of keys) {
+      fetch(`/voices/${key}.mp3`, { cache: 'force-cache' }).catch(() => {})
+    }
+  }
+
+  return { play, muted, toggleMuted, prefetch }
 }
