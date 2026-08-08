@@ -23,6 +23,27 @@ export function getMonthRange(date: Date): { start: Date; end: Date } {
   return { start, end }
 }
 
+/** First-of-month, for use as a "which month" cursor (swipe navigation etc). */
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+export function addMonths(date: Date, delta: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + delta, 1)
+}
+
+/** Header label like "2025年5月", for the マネーフォワード風 dashboard header. */
+export function formatYearMonth(d: Date): string {
+  return `${d.getFullYear()}年${d.getMonth() + 1}月`
+}
+
+/** Range subheading like "5月1日〜5月31日" for a month cursor. */
+export function formatMonthRange(d: Date): string {
+  const { start, end } = getMonthRange(d)
+  const lastDay = new Date(end.getTime() - 86_400_000)
+  return `${start.getMonth() + 1}月${start.getDate()}日〜${lastDay.getMonth() + 1}月${lastDay.getDate()}日`
+}
+
 export function getPeriodRange(period: Period, date: Date = new Date()) {
   return period === 'week' ? getWeekRange(date) : getMonthRange(date)
 }

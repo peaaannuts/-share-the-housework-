@@ -21,8 +21,8 @@ export function WeeklyTrend({ data, selfLabel, partnerLabel, isDark }: Props) {
   const axisColor = ink('muted', isDark)
 
   return (
-    <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
-      <h3 className="mb-2 text-sm font-semibold text-neutral-500 dark:text-neutral-400">
+    <div className="mt-3 rounded-[28px] border-4 border-white bg-[#fffdf5] p-[18px] shadow-[0_6px_0_rgba(120,140,90,0.28)] dark:border-neutral-700 dark:bg-neutral-900">
+      <h3 className="mb-2 text-[13.5px] font-bold text-[#8a9470] dark:text-neutral-400">
         週次推移
       </h3>
       <div className="h-56">

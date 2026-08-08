@@ -1,13 +1,22 @@
 import { useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
+import { useSwipe } from '../hooks/useSwipe'
 import { CategoryPie } from './dashboard/CategoryPie'
 import { ChoreBreakdown } from './dashboard/ChoreBreakdown'
 import { SplitRatioBar } from './dashboard/SplitRatioBar'
 import { TargetRatioEditor } from './dashboard/TargetRatioEditor'
 import { WeeklyTrend } from './dashboard/WeeklyTrend'
 import { useAllLogs, useLogsInRange } from '../hooks/useLogs'
-import { formatShortDate, getPeriodRange, getRecentWeeks, type Period } from '../lib/date'
+import {
+  addMonths,
+  formatMonthRange,
+  formatShortDate,
+  formatYearMonth,
+  getMonthRange,
+  getRecentWeeks,
+  startOfMonth,
+} from '../lib/date'
 import { useIsDark } from '../lib/theme'
 import { CHORE_CATEGORIES, type ChoreCategory } from '../types'
 
@@ -15,9 +24,18 @@ export function DashboardTab() {
   const { user } = useAuth()
   const { household, myNickname, partnerUid, setTargetRatio } = useHousehold()
   const isDark = useIsDark()
-  const [period, setPeriod] = useState<Period>('week')
 
-  const { start, end } = useMemo(() => getPeriodRange(period), [period])
+  // マネーフォワード風: 週/月切替ではなく「選択中の月」を1つ持つ。初期表示は当月。
+  const [selectedMonth, setSelectedMonth] = useState(() => startOfMonth(new Date()))
+  // 左スワイプ=前月、右スワイプ=次月（指定どおり）。TargetRatioEditor の
+  // スライダーは横ドラッグそのものなので、スワイプ判定は月ヘッダーの
+  // カードだけに絞り、他の操作と衝突しないようにする。
+  const swipe = useSwipe(
+    () => setSelectedMonth((m) => addMonths(m, -1)),
+    () => setSelectedMonth((m) => addMonths(m, 1)),
+  )
+
+  const { start, end } = useMemo(() => getMonthRange(selectedMonth), [selectedMonth])
   const { logs } = useLogsInRange(household?.id ?? null, start, end)
 
   const recentWeeks = useMemo(() => getRecentWeeks(6), [])
@@ -65,26 +83,47 @@ export function DashboardTab() {
   })
 
   return (
-    <div className="min-h-full px-4 pb-28 pt-6">
+    <div className="min-h-full px-4 pb-28 pt-6 font-['Zen_Maru_Gothic']">
       <h1 className="mb-4 text-2xl font-bold text-neutral-900 dark:text-white">
         📊 ダッシュボード
       </h1>
 
-      <div className="mb-4 flex gap-2">
-        {(['week', 'month'] as Period[]).map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setPeriod(p)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium ${
-              period === p
-                ? 'bg-blue-600 text-white'
-                : 'bg-white text-neutral-500 ring-1 ring-neutral-200 dark:bg-neutral-900 dark:text-neutral-400 dark:ring-neutral-800'
-            }`}
-          >
-            {p === 'week' ? '今週' : '今月'}
-          </button>
-        ))}
+      <div
+        onPointerDown={swipe.onPointerDown}
+        onPointerUp={swipe.onPointerUp}
+        onPointerCancel={swipe.onPointerCancel}
+        // select-none + touch-action:pan-y — without these, a real horizontal
+        // swipe on iOS can pop up the native text-selection UI (the month
+        // label is just text) or get intercepted by the browser's own pan
+        // gesture before our pointerup ever fires. pan-y still lets a swipe
+        // that starts here fall through to normal page scrolling if it turns
+        // out to be vertical.
+        className="mb-4 flex select-none items-center justify-center gap-4 rounded-[24px] border-4 border-white bg-[#fffdf5] px-3 py-3 shadow-[0_5px_0_rgba(120,140,90,0.22)] [touch-action:pan-y] dark:border-neutral-700 dark:bg-neutral-900"
+      >
+        <button
+          type="button"
+          onClick={() => setSelectedMonth((m) => addMonths(m, -1))}
+          aria-label="前月"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl font-bold text-[#8a9470] active:bg-[#eef2e2] dark:text-neutral-400 dark:active:bg-neutral-800"
+        >
+          ‹
+        </button>
+        <div className="flex flex-col items-center">
+          <span className="text-[16px] font-bold text-[#4e4133] dark:text-white">
+            {formatYearMonth(selectedMonth)}
+          </span>
+          <span className="text-[11px] text-[#a8ad92] dark:text-neutral-500">
+            {formatMonthRange(selectedMonth)}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setSelectedMonth((m) => addMonths(m, 1))}
+          aria-label="次月"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl font-bold text-[#8a9470] active:bg-[#eef2e2] dark:text-neutral-400 dark:active:bg-neutral-800"
+        >
+          ›
+        </button>
       </div>
 
       {!partnerUid && (

@@ -11,11 +11,11 @@ export function TargetRatioEditor({ target, selfLabel, partnerLabel, onChange }:
   const [value, setValue] = useState(target)
 
   return (
-    <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
-      <h3 className="mb-1 text-sm font-semibold text-neutral-500 dark:text-neutral-400">
+    <div className="mt-3 rounded-[28px] border-4 border-white bg-[#fffdf5] p-[18px] shadow-[0_6px_0_rgba(120,140,90,0.28)] dark:border-neutral-700 dark:bg-neutral-900">
+      <h3 className="mb-1 text-[13.5px] font-bold text-[#8a9470] dark:text-neutral-400">
         自分たちの目標比率
       </h3>
-      <p className="mb-3 text-xs text-neutral-400">
+      <p className="mb-3 text-xs text-[#a8ad92] dark:text-neutral-500">
         2人で話し合って決めた比率です。50:50である必要はありません。
       </p>
       <input
@@ -28,7 +28,7 @@ export function TargetRatioEditor({ target, selfLabel, partnerLabel, onChange }:
         onPointerUp={() => onChange(value)}
         className="w-full accent-blue-600"
       />
-      <p className="mt-2 text-center text-sm font-medium text-neutral-700 dark:text-neutral-200">
+      <p className="mt-2 text-center text-sm font-bold text-[#4e4133] dark:text-neutral-200">
         {selfLabel || 'あなた'} {value} : {100 - value} {partnerLabel}
       </p>
     </div>

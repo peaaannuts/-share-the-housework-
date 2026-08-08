@@ -54,17 +54,21 @@ export function ChoreBreakdown({ logs, selfUid, selfLabel, partnerLabel, isDark 
   const partnerColor = memberColor(false, isDark)
 
   return (
-    <div className="mt-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800">
-      <h3 className="mb-1 text-sm font-semibold text-neutral-500 dark:text-neutral-400">
+    <div className="mt-3 rounded-[28px] border-4 border-white bg-[#fffdf5] p-[18px] shadow-[0_6px_0_rgba(120,140,90,0.28)] dark:border-neutral-700 dark:bg-neutral-900">
+      <h3 className="mb-1 text-[13.5px] font-bold text-[#8a9470] dark:text-neutral-400">
         家事別実績（累計）
       </h3>
-      <p className="mb-3 text-xs text-neutral-400">これまでの記録の、家事ごとの実施回数と時間</p>
+      <p className="mb-3 text-xs text-[#a8ad92] dark:text-neutral-500">
+        これまでの記録の、家事ごとの実施回数と時間
+      </p>
 
       {rows.length === 0 ? (
-        <p className="py-6 text-center text-sm text-neutral-400">まだ記録がありません</p>
+        <p className="py-6 text-center text-sm text-[#a8ad92] dark:text-neutral-500">
+          まだ記録がありません
+        </p>
       ) : (
         <>
-          <div className="mb-1 flex items-center justify-end gap-4 text-xs text-neutral-400">
+          <div className="mb-1 flex items-center justify-end gap-4 text-xs text-[#a8ad92] dark:text-neutral-500">
             <span className="flex w-16 items-center justify-end gap-1">
               <span
                 className="inline-block h-2 w-2 rounded-full"
@@ -80,27 +84,31 @@ export function ChoreBreakdown({ logs, selfUid, selfLabel, partnerLabel, isDark 
               {partnerLabel}
             </span>
           </div>
-          <div className="flex flex-col divide-y divide-neutral-100 dark:divide-neutral-800">
+          <div className="flex flex-col divide-y divide-[#f0ede4] dark:divide-neutral-800">
             {rows.map((row) => (
               <div key={row.choreId} className="flex items-center justify-between gap-2 py-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-neutral-900 dark:text-white">
+                  <p className="truncate text-sm font-bold text-[#4e4133] dark:text-white">
                     {row.choreName}
                   </p>
-                  <p className="text-xs text-neutral-400">{row.category}</p>
+                  <p className="text-xs text-[#a8ad92] dark:text-neutral-500">{row.category}</p>
                 </div>
                 <div className="flex shrink-0 gap-4 text-right text-sm">
                   <div className="w-16">
-                    <p className="font-medium text-neutral-700 dark:text-neutral-200">
+                    <p className="font-bold text-[#4e4133] dark:text-neutral-200">
                       {row.selfCount}回
                     </p>
-                    <p className="text-xs text-neutral-400">{row.selfMinutes}分</p>
+                    <p className="text-xs text-[#a8ad92] dark:text-neutral-500">
+                      {row.selfMinutes}分
+                    </p>
                   </div>
                   <div className="w-16">
-                    <p className="font-medium text-neutral-700 dark:text-neutral-200">
+                    <p className="font-bold text-[#4e4133] dark:text-neutral-200">
                       {row.partnerCount}回
                     </p>
-                    <p className="text-xs text-neutral-400">{row.partnerMinutes}分</p>
+                    <p className="text-xs text-[#a8ad92] dark:text-neutral-500">
+                      {row.partnerMinutes}分
+                    </p>
                   </div>
                 </div>
               </div>
