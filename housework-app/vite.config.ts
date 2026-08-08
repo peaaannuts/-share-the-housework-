@@ -51,7 +51,10 @@ export default defineConfig({
         // They're fetched on demand instead and cached from then on (below),
         // so only the tips actually opened cost anything, and they still work
         // offline afterwards.
-        globIgnores: ['tips/**'],
+        // いえもりの音声（public/voices/*.mp3、任意・後から追加される）も
+        // 同じ理由で除外: 精査時に全部プリキャッシュされると、鳴らして
+        // いない声まで毎回ダウンロードされてしまう。
+        globIgnores: ['tips/**', 'voices/**'],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/tips/'),
@@ -59,6 +62,15 @@ export default defineConfig({
             options: {
               cacheName: 'housework-tip-images',
               expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/voices/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'housework-iemori-voices',
+              expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 90 },
               cacheableResponse: { statuses: [0, 200] },
             },
           },

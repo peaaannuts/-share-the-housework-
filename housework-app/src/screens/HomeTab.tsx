@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useHousehold } from '../contexts/HouseholdContext'
 import { useToast } from '../contexts/ToastContext'
 import { useChores } from '../hooks/useChores'
+import { useIemoriVoice } from '../hooks/useIemoriVoice'
 import { useLogsInRange } from '../hooks/useLogs'
 import { useLongPress } from '../hooks/useLongPress'
 import { categoryChipColor, categoryEmoji } from '../lib/categoryStyle'
@@ -35,6 +36,20 @@ interface IemoriContext {
   partnerName: string
 }
 
+/**
+ * 表示する台詞。`key` は音声ファイル名（`public/voices/{key}.mp3`）にも
+ * 使う安定id。`hasVoice: false` は、台詞の中に可変値（残数・🍀合計・
+ * ニックネーム）が埋め込まれていて事前収録の音声を当てられない行——
+ * ComfyUIで手作業生成する都合上、こういう行は無音のまま（テキストのみ）に
+ * 割り切っている。時間帯による分岐（朝/昼/夜）のように、選ばれ方は動的でも
+ * 結果の文言自体は固定のものは `hasVoice: true` にできる。
+ */
+interface IemoriLine {
+  key: string
+  text: string
+  hasVoice: boolean
+}
+
 function iemoriLines({
   remain,
   thanksToday,
@@ -42,45 +57,76 @@ function iemoriLines({
   youCount,
   selfName,
   partnerName,
-}: IemoriContext): string[] {
+}: IemoriContext): IemoriLine[] {
   const hour = new Date().getHours()
   return [
     remain === 0
-      ? 'きょうの家事はぜんぶ片づきましたなぁ。お茶でも飲みましょう。'
-      : `のこりは ${remain}こ。急がずまいりましょう。`,
-    'ふたりで分けると、家はずいぶん軽くなるものですねぇ。',
-    `きょうは 🍀 が ${thanksToday.toLocaleString('ja-JP')} たまりましたよ。えらい。`,
-    '無理はしなくてよろしい。あしたの分は、あしたの家が持ちます。',
+      ? { key: 'allDone', text: 'きょうの家事はぜんぶ片づきましたなぁ。お茶でも飲みましょう。', hasVoice: true }
+      : { key: 'remain', text: `のこりは ${remain}こ。急がずまいりましょう。`, hasVoice: false },
+    { key: 'together', text: 'ふたりで分けると、家はずいぶん軽くなるものですねぇ。', hasVoice: true },
+    {
+      key: 'thanksToday',
+      text: `きょうは 🍀 が ${thanksToday.toLocaleString('ja-JP')} たまりましたよ。えらい。`,
+      hasVoice: false,
+    },
+    { key: 'noRush', text: '無理はしなくてよろしい。あしたの分は、あしたの家が持ちます。', hasVoice: true },
     meCount === youCount
-      ? 'ふたりの手が、ちょうど同じだけ動いておりますなぁ。'
+      ? { key: 'evenHands', text: 'ふたりの手が、ちょうど同じだけ動いておりますなぁ。', hasVoice: true }
       : meCount > youCount
-        ? `きょうは ${selfName}さんがよく動いておられる。ひと休みも仕事のうちですよ。`
-        : `${partnerName}さんがよく動いておられますなぁ。ひとこと伝えると、きっと喜びます。`,
+        ? {
+            key: 'selfMore',
+            text: `きょうは ${selfName}さんがよく動いておられる。ひと休みも仕事のうちですよ。`,
+            hasVoice: false,
+          }
+        : {
+            key: 'partnerMore',
+            text: `${partnerName}さんがよく動いておられますなぁ。ひとこと伝えると、きっと喜びます。`,
+            hasVoice: false,
+          },
     hour < 11
-      ? '朝のうちにひとつ片づけておくと、夜がずいぶん楽になりますよ。'
+      ? { key: 'morning', text: '朝のうちにひとつ片づけておくと、夜がずいぶん楽になりますよ。', hasVoice: true }
       : hour < 17
-        ? '昼下がりですなぁ。根を詰めずに、ゆっくりまいりましょう。'
-        : '日も暮れました。のこりは明日にまわしても、罰は当たりません。',
-    '「ありがとう」は、ためこまずにその日のうちに渡すのがよろしい。',
-    'やった家事の数より、やってくれた相手のほうを覚えておきなさい。',
-    '完璧でなくてよいのです。だいたい片づけば、家はちゃんと回ります。',
-    '気づいた人がやる、で回していると、いつか片方が疲れます。分けましょうな。',
-    'きれいな部屋より、機嫌のよいふたりのほうが、家は嬉しいものですよ。',
-    '洗いものは逃げませんが、眠気には勝てません。先に寝てもよろしい。',
-    '同じ家事でも、やる人が違えば手間も違う。そこを見てあげなさい。',
-    'たまには家事をひとつ、まるごと相手にゆずってみるのもよいものです。',
-    'この記録は、責めるためではなく、ねぎらうためにつけるものですよ。',
-    '手が空いたときにひとつだけ。それだけで、ずいぶん違うものです。',
-    '疲れた日は、買ってきたごはんで済ませるのも立派な家事です。',
-    '「きょうは疲れた」と言えるのも、ふたり暮らしのよいところですなぁ。',
-    'この家は、ふたりが思うよりずっと、ふたりに支えられております。',
-    'わたしはここにおりますから。また明日も、のんびりまいりましょう。',
+        ? { key: 'afternoon', text: '昼下がりですなぁ。根を詰めずに、ゆっくりまいりましょう。', hasVoice: true }
+        : { key: 'evening', text: '日も暮れました。のこりは明日にまわしても、罰は当たりません。', hasVoice: true },
+    { key: 'thanksSameDay', text: '「ありがとう」は、ためこまずにその日のうちに渡すのがよろしい。', hasVoice: true },
+    { key: 'rememberPartner', text: 'やった家事の数より、やってくれた相手のほうを覚えておきなさい。', hasVoice: true },
+    { key: 'notPerfect', text: '完璧でなくてよいのです。だいたい片づけば、家はちゃんと回ります。', hasVoice: true },
+    {
+      key: 'shareChores',
+      text: '気づいた人がやる、で回していると、いつか片方が疲れます。分けましょうな。',
+      hasVoice: true,
+    },
+    { key: 'happyTwo', text: 'きれいな部屋より、機嫌のよいふたりのほうが、家は嬉しいものですよ。', hasVoice: true },
+    { key: 'sleepFirst', text: '洗いものは逃げませんが、眠気には勝てません。先に寝てもよろしい。', hasVoice: true },
+    { key: 'differentEffort', text: '同じ家事でも、やる人が違えば手間も違う。そこを見てあげなさい。', hasVoice: true },
+    {
+      key: 'giveOneChore',
+      text: 'たまには家事をひとつ、まるごと相手にゆずってみるのもよいものです。',
+      hasVoice: true,
+    },
+    { key: 'notBlame', text: 'この記録は、責めるためではなく、ねぎらうためにつけるものですよ。', hasVoice: true },
+    { key: 'oneWhenFree', text: '手が空いたときにひとつだけ。それだけで、ずいぶん違うものです。', hasVoice: true },
+    { key: 'takeoutOk', text: '疲れた日は、買ってきたごはんで済ませるのも立派な家事です。', hasVoice: true },
+    {
+      key: 'tiredDayOk',
+      text: '「きょうは疲れた」と言えるのも、ふたり暮らしのよいところですなぁ。',
+      hasVoice: true,
+    },
+    { key: 'supportedMore', text: 'この家は、ふたりが思うよりずっと、ふたりに支えられております。', hasVoice: true },
+    { key: 'hereForYou', text: 'わたしはここにおりますから。また明日も、のんびりまいりましょう。', hasVoice: true },
   ]
 }
 
 function IemoriCard(ctx: IemoriContext) {
   const [lineIndex, setLineIndex] = useState(0)
   const lines = iemoriLines(ctx)
+  const { play, muted, toggleMuted } = useIemoriVoice()
+
+  function handleTap() {
+    const next = (lineIndex + 1) % lines.length
+    setLineIndex(next)
+    play(lines[next])
+  }
 
   return (
     <div className="mt-4 flex items-end gap-3">
@@ -93,14 +139,25 @@ function IemoriCard(ctx: IemoriContext) {
         <span className="absolute -bottom-1 -left-1 rounded-full border-2 border-white bg-[#fffdf5] px-2 py-0.5 text-[10.5px] font-bold text-[#6f7a4e] shadow-[0_2px_0_rgba(120,140,90,0.25)] dark:border-neutral-700 dark:bg-neutral-900 dark:text-[#a3d17a]">
           いえもり
         </span>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleMuted()
+          }}
+          aria-label={muted ? '音声をオンにする' : '音声をオフにする'}
+          className="absolute -right-1 -top-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#fffdf5] text-[11px] shadow-[0_2px_0_rgba(120,140,90,0.25)] dark:border-neutral-700 dark:bg-neutral-900"
+        >
+          {muted ? '🔇' : '🔊'}
+        </button>
       </div>
       <button
         type="button"
-        onClick={() => setLineIndex((i) => (i + 1) % lines.length)}
+        onClick={handleTap}
         className="min-w-0 flex-1 rounded-[22px_22px_22px_6px] border-4 border-white bg-[#fffdf5] px-4 py-3.5 text-left shadow-[0_5px_0_rgba(120,140,90,0.26)] transition active:translate-y-0.5 active:shadow-[0_3px_0_rgba(120,140,90,0.26)] dark:border-neutral-700 dark:bg-neutral-900"
       >
         <p className="text-[13.5px] font-bold leading-relaxed text-[#4e5c35] dark:text-neutral-200">
-          {lines[lineIndex]}
+          {lines[lineIndex].text}
         </p>
         <p className="mt-2 text-[10.5px] font-medium text-[#adb493] dark:text-neutral-500">
           タップでもうひとこと
