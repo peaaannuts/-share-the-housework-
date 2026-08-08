@@ -169,6 +169,20 @@ Figmaコネクタはアカウントに接続済み。会話によってオフの
 - `vite.config.ts` の `globIgnores` に `voices/**` を追加し、TIPSイラストと
   同じくPWAプリキャッシュから除外してCacheFirstのランタイムキャッシュに
   回している（音声を足すたびに毎回全部ダウンロードされるのを防ぐ）。
+- **iOS Safari/WebKit向けの`load()`が必須**: 1つの`<audio>`要素を使い回して
+  `src`だけ差し替える実装だと、`load()`を明示的に呼ばない限りWebKit系が
+  新しいソースを正しく読み込まないことがある（`play()`自体はエラーなく
+  resolveするのに無音、という分かりにくい壊れ方をする）。`pause()`→`src`
+  セット→`load()`→`play()`の順を守ること。
+- **タップ連打で音声が再生されないレース**: `<audio>`を再利用する設計上、
+  次の台詞をタップすると前の台詞の`pause()`が直前の`play()`をまだ読み込み
+  中のうちに中断してしまう。通信が遅い環境で台詞を素早く連続タップすると、
+  読み込みが間に合わなかった台詞の音声だけが一度も再生されずに消える
+  （エラーも出ない）。対策として`IemoriCard`初回マウント時に
+  `useIemoriVoice.prefetch(lines)`で全hasVoice:trueファイルを一括fetchし、
+  CacheFirstキャッシュを温めておくことでタップ時は概ねキャッシュから
+  即座に再生される。Playwright + CDPの`Network.emulateNetworkConditions`
+  でモバイル回線を再現し、400ms間隔の連打でも全て再生開始することを確認済み。
 
 **運用上の注意**: 音声ファイルを追加するのに、デプロイ方法（GitHub Actions
 自動デプロイ）を変える必要はない。`public/iemori.png` と同じ要領で
