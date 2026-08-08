@@ -19,9 +19,17 @@ export function useIemoriVoice() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
-    audioRef.current = new Audio()
+    const audio = new Audio()
+    // Ignore load/decode errors: a 404 or undecodable file just means no
+    // recording exists yet for this line — the tap still switches text.
+    // Logged (not surfaced to the UI) so a real problem is still visible
+    // in devtools instead of silently vanishing.
+    audio.addEventListener('error', () => {
+      console.warn('[iemori voice] failed to load/decode', audio.src, audio.error)
+    })
+    audioRef.current = audio
     return () => {
-      audioRef.current?.pause()
+      audio.pause()
       audioRef.current = null
     }
   }, [])
@@ -31,10 +39,12 @@ export function useIemoriVoice() {
     const audio = audioRef.current
     if (!audio) return
     audio.pause()
-    audio.currentTime = 0
     audio.src = `/voices/${line.key}.mp3`
-    // Ignore rejections/errors: a 404 or undecodable file just means no
-    // recording exists yet for this line — the tap still switches text.
+    // iOS Safari/WebKit doesn't reliably pick up a new `src` on a reused
+    // <audio> element unless load() is called explicitly — play() can
+    // resolve without error yet produce no sound. load() also resets
+    // currentTime to 0, so no need to set it separately.
+    audio.load()
     audio.play().catch(() => {})
   }
 
