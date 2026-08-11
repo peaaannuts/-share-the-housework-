@@ -11,6 +11,7 @@ interface Preset {
 }
 
 const PRESETS: Preset[] = [
+  { label: '今', sublabel: 'たった今', at: () => Date.now() },
   { label: 'さっき', sublabel: '1時間前', at: () => hoursAgo(1) },
   { label: '今朝', sublabel: '8:00', at: () => todayAt(8) },
   { label: '昨日の夜', sublabel: '昨日 20:00', at: () => yesterdayAt(20) },
