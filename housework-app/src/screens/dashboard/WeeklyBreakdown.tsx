@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { buildChoreStats } from '../../lib/choreStats'
 import { memberColor } from '../../lib/chartColors'
+import { buildChoreStats } from '../../lib/choreStats'
+import { formatShortDate } from '../../lib/date'
 import type { ChoreLog } from '../../types'
 
 interface Props {
@@ -9,26 +10,41 @@ interface Props {
   selfLabel: string
   partnerLabel: string
   isDark: boolean
+  weekStart: Date
+  weekEnd: Date
 }
 
-export function ChoreBreakdown({ logs, selfUid, selfLabel, partnerLabel, isDark }: Props) {
+/**
+ * 「分担比率」の下に置く、今週分の家事別実施状況。ChoreBreakdown（全期間
+ * 累計）と同じ行レイアウト・集計ロジック（buildChoreStats）を使うが、
+ * 対象ログを呼び出し側で今週分に絞ってもらう点だけが違う。
+ */
+export function WeeklyBreakdown({
+  logs,
+  selfUid,
+  selfLabel,
+  partnerLabel,
+  isDark,
+  weekStart,
+  weekEnd,
+}: Props) {
   const rows = useMemo(() => buildChoreStats(logs, selfUid), [logs, selfUid])
-
   const selfColor = memberColor(true, isDark)
   const partnerColor = memberColor(false, isDark)
+  const lastDay = new Date(weekEnd.getTime() - 86_400_000)
 
   return (
     <div className="mt-3 rounded-[28px] border-4 border-white bg-[#fffdf5] p-[18px] shadow-[0_6px_0_rgba(120,140,90,0.28)] dark:border-neutral-700 dark:bg-neutral-900">
       <h3 className="mb-1 text-[13.5px] font-bold text-[#8a9470] dark:text-neutral-400">
-        家事別実績（累計）
+        今週の実施状況
       </h3>
       <p className="mb-3 text-xs text-[#a8ad92] dark:text-neutral-500">
-        これまでの記録の、家事ごとの実施回数と時間
+        {formatShortDate(weekStart)}〜{formatShortDate(lastDay)}の、家事ごとの実施回数と時間
       </p>
 
       {rows.length === 0 ? (
         <p className="py-6 text-center text-sm text-[#a8ad92] dark:text-neutral-500">
-          まだ記録がありません
+          今週はまだ記録がありません
         </p>
       ) : (
         <>
