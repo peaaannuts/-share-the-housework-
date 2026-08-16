@@ -32,6 +32,12 @@ export function addMonths(date: Date, delta: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + delta, 1)
 }
 
+export function addWeeks(date: Date, delta: number): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + delta * 7)
+  return d
+}
+
 /** Header label like "2025年5月", for the マネーフォワード風 dashboard header. */
 export function formatYearMonth(d: Date): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月`
