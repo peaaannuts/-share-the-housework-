@@ -11,11 +11,13 @@ import { WeeklyTrend } from './dashboard/WeeklyTrend'
 import { useAllLogs, useLogsInRange } from '../hooks/useLogs'
 import {
   addMonths,
+  addWeeks,
   formatMonthRange,
   formatShortDate,
   formatYearMonth,
   getMonthRange,
   getRecentWeeks,
+  getWeekRange,
   startOfMonth,
 } from '../lib/date'
 import { useIsDark } from '../lib/theme'
@@ -46,13 +48,15 @@ export function DashboardTab() {
     recentWeeks[recentWeeks.length - 1].end,
   )
 
-  // 今週（月曜始まり）は recentWeeks の最後の要素そのもの。新しくFirestore
-  // クエリを増やさず、WeeklyTrend用に既に取得済みのtrendLogsを絞り込むだけ
-  // で「今週の実施状況」を出す。
-  const thisWeek = recentWeeks[recentWeeks.length - 1]
-  const thisWeekLogs = useMemo(
-    () => trendLogs.filter((l) => l.doneAt >= thisWeek.start.getTime() && l.doneAt < thisWeek.end.getTime()),
-    [trendLogs, thisWeek],
+  // 「今週の実施状況」は前週・翌週にタップで移動できる——WeeklyTrendの
+  // 直近6週間ウィンドウには縛られたくない（もっと過去にも遡れるように）
+  // ので、trendLogsのfilterではなく独立したクエリで取得する。
+  const [weekAnchor, setWeekAnchor] = useState(() => new Date())
+  const selectedWeek = useMemo(() => getWeekRange(weekAnchor), [weekAnchor])
+  const { logs: selectedWeekLogs } = useLogsInRange(
+    household?.id ?? null,
+    selectedWeek.start,
+    selectedWeek.end,
   )
 
   const { logs: allLogs } = useAllLogs(household?.id ?? null)
@@ -151,13 +155,15 @@ export function DashboardTab() {
       />
 
       <WeeklyBreakdown
-        logs={thisWeekLogs}
+        logs={selectedWeekLogs}
         selfUid={user.uid}
         selfLabel={myNickname}
         partnerLabel={partnerNickname ?? 'パートナー'}
         isDark={isDark}
-        weekStart={thisWeek.start}
-        weekEnd={thisWeek.end}
+        weekStart={selectedWeek.start}
+        weekEnd={selectedWeek.end}
+        onPrevWeek={() => setWeekAnchor((w) => addWeeks(w, -1))}
+        onNextWeek={() => setWeekAnchor((w) => addWeeks(w, 1))}
       />
 
       <TargetRatioEditor
