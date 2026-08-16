@@ -6,6 +6,7 @@ import { CategoryPie } from './dashboard/CategoryPie'
 import { ChoreBreakdown } from './dashboard/ChoreBreakdown'
 import { SplitRatioBar } from './dashboard/SplitRatioBar'
 import { TargetRatioEditor } from './dashboard/TargetRatioEditor'
+import { WeeklyBreakdown } from './dashboard/WeeklyBreakdown'
 import { WeeklyTrend } from './dashboard/WeeklyTrend'
 import { useAllLogs, useLogsInRange } from '../hooks/useLogs'
 import {
@@ -43,6 +44,15 @@ export function DashboardTab() {
     household?.id ?? null,
     recentWeeks[0].start,
     recentWeeks[recentWeeks.length - 1].end,
+  )
+
+  // 今週（月曜始まり）は recentWeeks の最後の要素そのもの。新しくFirestore
+  // クエリを増やさず、WeeklyTrend用に既に取得済みのtrendLogsを絞り込むだけ
+  // で「今週の実施状況」を出す。
+  const thisWeek = recentWeeks[recentWeeks.length - 1]
+  const thisWeekLogs = useMemo(
+    () => trendLogs.filter((l) => l.doneAt >= thisWeek.start.getTime() && l.doneAt < thisWeek.end.getTime()),
+    [trendLogs, thisWeek],
   )
 
   const { logs: allLogs } = useAllLogs(household?.id ?? null)
@@ -138,6 +148,16 @@ export function DashboardTab() {
         selfLabel={myNickname}
         partnerLabel={partnerNickname ?? 'パートナー'}
         isDark={isDark}
+      />
+
+      <WeeklyBreakdown
+        logs={thisWeekLogs}
+        selfUid={user.uid}
+        selfLabel={myNickname}
+        partnerLabel={partnerNickname ?? 'パートナー'}
+        isDark={isDark}
+        weekStart={thisWeek.start}
+        weekEnd={thisWeek.end}
       />
 
       <TargetRatioEditor
